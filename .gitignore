@@ -23,3 +23,7 @@ Thumbs.db
 _edge_profile*/
 _screens*/
 _ui_*_test.js
+
+# Local browser checks
+_*check.js
+_*test.js
