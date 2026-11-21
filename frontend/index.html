@@ -6414,6 +6414,8 @@ let currentNotifications = [];
 let notificationsOpen = false;
 let eventSource = null;
 let liveRefreshTimer = null;
+let livePollTimer = null;
+let livePollBusy = false;
 let liveConnected = false;
 let lastFocusedElement = null;
 let lastCommandFocus = null;
@@ -6764,13 +6766,38 @@ function activateNotification(id) {
 /* =========================================================================
    实时同步
    ========================================================================= */
-function setLiveState(connected) {
+function setLiveState(connected, label) {
     liveConnected = connected;
     const node = document.getElementById('liveState');
     if (!node) return;
     node.classList.toggle('offline', !connected);
-    node.querySelector('span:last-child').textContent = connected ? '实时' : '离线';
-    node.title = connected ? '实时同步已连接' : '实时同步断开，正在重连';
+    node.querySelector('span:last-child').textContent = connected ? (label || '实时') : (label || '离线');
+    node.title = connected ? '实时同步已连接' : '实时连接不可用，已自动切换为轮询同步';
+}
+
+function stopLivePolling() {
+    if (livePollTimer) {
+        clearInterval(livePollTimer);
+        livePollTimer = null;
+    }
+    livePollBusy = false;
+}
+
+function startLivePolling() {
+    if (livePollTimer) return;
+    livePollTimer = setInterval(async () => {
+        if (!TOKEN || !state.user || livePollBusy) return;
+        livePollBusy = true;
+        try {
+            await refreshData();
+            if (state.user) renderPage();
+            setLiveState(false, '轮询');
+        } catch (error) {
+            setLiveState(false, '轮询');
+        } finally {
+            livePollBusy = false;
+        }
+    }, 12000);
 }
 
 function closeLiveEvents() {
@@ -6778,6 +6805,7 @@ function closeLiveEvents() {
         eventSource.close();
         eventSource = null;
     }
+    stopLivePolling();
     setLiveState(false);
     if (liveRefreshTimer) {
         clearTimeout(liveRefreshTimer);
@@ -6790,8 +6818,14 @@ function connectLiveEvents() {
     if (!TOKEN || !state.user) return;
     try {
         eventSource = new EventSource(`${API_BASE}/api/events?token=${encodeURIComponent(TOKEN)}`);
-        eventSource.onopen = () => setLiveState(true);
-        eventSource.onerror = () => setLiveState(false);
+        eventSource.onopen = () => {
+            stopLivePolling();
+            setLiveState(true);
+        };
+        eventSource.onerror = () => {
+            setLiveState(false, '轮询');
+            startLivePolling();
+        };
         eventSource.onmessage = event => {
             let payload = null;
             try { payload = JSON.parse(event.data); } catch { return; }
@@ -6808,7 +6842,8 @@ function connectLiveEvents() {
             }, 260);
         };
     } catch (error) {
-        setLiveState(false);
+        setLiveState(false, '轮询');
+        startLivePolling();
     }
 }
 /* =========================================================================
