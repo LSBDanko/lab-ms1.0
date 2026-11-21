@@ -6324,12 +6324,17 @@
 /* =========================================================================
    配置与状态
    ========================================================================= */
-const API_BASE = (
+const _configuredApi = (
     new URLSearchParams(window.location.search).get('api') ||
     (typeof window.LAB_API_BASE === 'string' ? window.LAB_API_BASE : '') ||
     localStorage.getItem('lab_api_base') ||
-    'http://127.0.0.1:8000'
-).trim().replace(/\/+$/, '');
+    ''
+).trim();
+const _servedByBackend = window.__LAB_SERVED_BY_BACKEND__ === true;
+const _fallbackApi = _servedByBackend
+    ? window.location.origin
+    : 'http://127.0.0.1:8000';
+const API_BASE = (_configuredApi || _fallbackApi).replace(/\/+$/, '');
 let TOKEN = localStorage.getItem('lab_token') || '';
 
 const DB = {

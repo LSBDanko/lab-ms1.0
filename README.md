@@ -15,7 +15,11 @@ lab-ms/
 │  ├─ main.py              # FastAPI + SQLite
 │  ├─ requirements.txt
 │  └─ lab.db               # 本地数据，不提交到 Git
-└─ render.yaml             # Render 后端部署示例
+├─ Dockerfile              # 不绑卡 Docker 部署（Hugging Face Spaces 等）
+├─ deploy/
+│  └─ huggingface/         # Hugging Face Space 的 README 模板
+├─ render.yaml             # Render 后端部署示例
+└─ README.md
 ```
 
 ## 本地运行
@@ -67,7 +71,48 @@ frontend/index.html
 index.html
 ```
 
-`frontend/config.js` 默认留空，因此前端会访问本机 `8000` 端口。
+也可以直接打开后端根地址：
+
+```text
+http://127.0.0.1:8000/
+```
+
+后端会自动托管 `frontend/`，此时前端和 API 同源，不需要额外配置 `config.js`。
+
+`frontend/config.js` 默认留空，直接打开 `frontend/index.html` 时会访问本机 `8000` 端口。
+
+## 同一 WiFi 下让手机 / 平板访问
+
+不需要 GitHub Pages，也不需要云服务器或银行卡。后端现在会直接托管前端页面。
+
+1. 确保电脑和后端服务正在运行
+2. 在电脑上执行：
+
+```powershell
+ipconfig
+```
+
+找到当前 WiFi 的 IPv4 地址，例如：
+
+```text
+192.168.1.23
+```
+
+3. 手机/平板连接同一个 WiFi，打开：
+
+```text
+http://192.168.1.23:8000/
+```
+
+就能直接打开完整系统，前端和 API 同源，不需要改 `config.js`。
+
+如果手机打不开，通常是 Windows 防火墙拦截了 8000 端口。可以在管理员 PowerShell 中执行：
+
+```powershell
+netsh advfirewall firewall add rule name="Lab MS 8000" dir=in action=allow protocol=TCP localport=8000
+```
+
+> 这种方式只在同一局域网内有效，电脑关机或休眠后无法访问。
 
 ## GitHub Pages 部署
 
@@ -118,6 +163,64 @@ Render/Railway/云服务器  →  backend/main.py
 ```
 
 ### 1. 部署后端
+
+#### 不绑卡方案：Hugging Face Spaces
+
+如果 Render 要求绑定银行卡，可以使用 Hugging Face Spaces 的免费 Docker Space，不需要信用卡。
+
+1. 注册/登录 [Hugging Face](https://huggingface.co/)
+2. 打开 [新建 Space](https://huggingface.co/new-space)
+3. 填写名称，SDK 选择 **Docker**，硬件选择 **CPU basic · FREE**
+4. 可见性选择 **Public**
+5. 创建后，把下面这些内容放到 Space 根目录：
+
+```text
+Dockerfile
+backend/
+frontend/
+```
+
+推荐直接用 Space 页面上的 **Files → Upload files** 上传，避免覆盖 Space 自动生成的 `README.md`。
+
+如果使用 Git 推送整个仓库，请保留 Space 根目录的 `README.md`，或者使用 [deploy/huggingface/README.md](deploy/huggingface/README.md) 作为 Space 的 README，不要直接使用项目根目录的 README 覆盖它。
+
+6. 在 Space 的 **Settings → Variables and secrets** 添加：
+
+```text
+LAB_SECRET=一串足够长的随机字符串
+```
+
+7. 等待构建完成，地址通常是：
+
+```text
+https://你的用户名-你的Space名.hf.space
+```
+
+后端会自动托管前端，直接打开这个地址就能使用完整系统，不需要额外配置 GitHub Pages 的 `config.js`。
+
+8. 测试健康检查：
+
+```text
+https://你的用户名-你的Space名.hf.space/api/health
+```
+
+返回 `{"ok": true, ...}` 就说明后端已上线。
+
+9. 打开接口文档：
+
+```text
+https://你的用户名-你的Space名.hf.space/docs
+```
+
+10. 如果你仍然想用 GitHub Pages 作为前端入口，再把地址填入 `frontend/config.js`：
+
+```js
+window.LAB_API_BASE = 'https://你的用户名-你的Space名.hf.space';
+```
+
+**注意：** 免费 Space 的 `/tmp` 数据在重启或重新构建后可能被清空，适合演示；要长期保存台账，需要持久化磁盘或 PostgreSQL。Dockerfile 已将数据库路径设置为 `/tmp/lab.db`。
+
+#### Render 方案（可能需要绑卡）
 
 可以直接使用根目录的 `render.yaml` 在 Render 创建 Blueprint，也可以手动配置：
 

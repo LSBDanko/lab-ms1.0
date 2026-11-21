@@ -33,7 +33,8 @@ from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 
@@ -45,6 +46,10 @@ DB_PATH = os.getenv("LAB_DB", "lab.db")
 SECRET = os.getenv("LAB_SECRET", "lab-ms-dev-secret-change-me")
 TOKEN_TTL_SECONDS = 8 * 60 * 60
 PBKDF2_ITERATIONS = 100_000
+FRONTEND_DIR = os.getenv(
+    "LAB_FRONTEND_DIR",
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend")),
+)
 
 INSTRUMENT_STATUS_IDLE = "空闲"
 INSTRUMENT_STATUS_USING = "使用中"
@@ -878,6 +883,36 @@ async def realtime_write_notifier(request: Request, call_next):
     ):
         publish_realtime_event(request.url.path)
     return response
+
+
+@app.get("/api/health")
+def health() -> Dict[str, Any]:
+    return {"ok": True, "service": "lab-ms-api", "time": now_iso()}
+
+
+if os.path.isdir(FRONTEND_DIR):
+    _frontend_assets = os.path.join(FRONTEND_DIR, "assets")
+    if os.path.isdir(_frontend_assets):
+        app.mount("/assets", StaticFiles(directory=_frontend_assets), name="frontend-assets")
+
+    @app.get("/", include_in_schema=False)
+    def frontend_home() -> HTMLResponse:
+        with open(os.path.join(FRONTEND_DIR, "index.html"), "r", encoding="utf-8") as handle:
+            html = handle.read()
+        marker = '<script>window.__LAB_SERVED_BY_BACKEND__ = true;</script></head>'
+        html = html.replace("</head>", marker, 1)
+        return HTMLResponse(
+            content=html,
+            headers={"Cache-Control": "no-cache"},
+        )
+
+    @app.get("/config.js", include_in_schema=False)
+    def frontend_config() -> FileResponse:
+        return FileResponse(
+            os.path.join(FRONTEND_DIR, "config.js"),
+            media_type="application/javascript",
+            headers={"Cache-Control": "no-cache"},
+        )
 
 
 # ----------------------------- 登录与当前用户 -----------------------------
