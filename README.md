@@ -159,10 +159,49 @@ GitHub Pages 只能托管 HTML/CSS/JS，不能运行 FastAPI、Python 或 SQLite
 
 ```text
 GitHub Pages  →  frontend/index.html
-Render/Railway/云服务器  →  backend/main.py
+CloudBase Run / Render / 云服务器  →  backend/main.py
 ```
 
 ### 1. 部署后端
+
+#### 腾讯云 CloudBase Run（国内推荐）
+
+CloudBase 云托管支持直接部署 FastAPI Docker 容器，地域目前为上海。
+
+1. 注册/登录腾讯云，开通 CloudBase 环境
+2. 安装 CloudBase CLI：
+
+```bash
+npm install -g @cloudbase/cli
+tcb login
+```
+
+3. 在项目根目录部署：
+
+```bash
+tcb cloudrun deploy \
+  -e 你的环境ID \
+  -s lab-ms \
+  --port 80 \
+  --source . \
+  --env-params '{"PORT":"80","LAB_SECRET":"你的随机长字符串","LAB_DB":"/tmp/lab.db","TZ":"Asia/Shanghai"}' \
+  --force --yes --wait
+```
+
+4. 查看公网地址：
+
+```bash
+tcb cloudrun detail -e 你的环境ID -s lab-ms
+```
+
+`DefaultDomainName` 就是公网 HTTPS 地址。
+
+注意：
+
+- 容器端口必须是 `80`
+- SQLite 位于 `/tmp/lab.db`，容器重启后可能重置
+- 长期保存数据需要改用 CloudBase PostgreSQL 或腾讯云数据库
+- 体验版环境有有效期，到期/超出额度后以控制台账单为准
 
 #### 不绑卡方案：Hugging Face Spaces
 

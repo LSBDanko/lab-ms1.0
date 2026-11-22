@@ -2,7 +2,7 @@
  * 实验室管理系统 · 前端运行时配置
  * =============================================
  *
- * 临时公网后端（Cloudflare Quick Tunnel）
- * 该地址只在当前后端 + 隧道进程运行时有效，重启后会变化。
+ * 公网后端：腾讯云 CloudBase Run
+ * 容器与前端由同一个 FastAPI 服务托管。
  */
-window.LAB_API_BASE = 'https://edmonton-session-liquid-con.trycloudflare.com';
+window.LAB_API_BASE = 'https://lab-ms-352114-6-1538467438.sh.run.tcloudbase.com';
